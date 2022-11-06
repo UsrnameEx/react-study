@@ -1,23 +1,36 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import React, {useEffect, useState} from "react";
 import './styles/App.css';
-import PostItem from './components/PostItem';
 import PostList from './components/PostList';
 import MyButton from './components/UI/button/MyButton';
-import MyInput from './components/UI/input/MyInput';
 import PostForm from './components/PostForm';
-import MySelect from './components/UI/select/MySelect';
 import PostFilter from './components/PostFilter';
 import MyModal from './components/UI/modal/MyModal';
 import {usePosts} from './hooks/usePosts';
-import axios from 'axios';
 import PostService from './API/PostService';
 import Loader from './components/UI/loader/Loader';
+import {useFetching} from './hooks/useFetching';
+import {getPageCount, getPagesArray} from './components/utils/pages';
 
 function App() {
+
     const [posts, setPosts] = useState([]);
     const [filter, setFilter] = useState({sort: '', query: ''});
 
-    const [isPostsLoading, setIsPostsLoading] = useState(false);
+    const [totalPages, setTotalPages] = useState(0);
+
+    const [limit, setLimit] = useState(10);
+    const [page, setPage] = useState(1);
+
+    const [getPosts, isPostsLoading, postError] = useFetching(async () => {
+        const response = await PostService.getAll(page, limit);
+        setPosts(response.data);
+
+        const totalCount = response.headers['x-total-count'];
+
+        setTotalPages(getPageCount(totalCount, limit));
+    });
+
+    const pagesArray = getPagesArray(totalPages);
 
     const createPost = (newPost) => {
         setPosts([...posts, newPost]);
@@ -30,18 +43,10 @@ function App() {
 
     const [visible, setVisible] = useState(false);
 
-    const getPosts = async () => {
-        setIsPostsLoading(true);
-        setTimeout(async () => {
-            const posts = await PostService.getAll();
-            setPosts(posts);
-            setIsPostsLoading(false);
-        }, 1000);
-    }
-
     useEffect(() => {
         getPosts();
-    }, []);
+    }, [page]);
+
 
     const sortAndSearchPosts = usePosts(posts, filter.sort, filter.query);
 
@@ -62,11 +67,28 @@ function App() {
                 setFilter={setFilter}
             />
             {
+                postError &&
+                <h1>Произошла ошибка ${postError}</h1>
+            }
+            {
                 isPostsLoading
                     ? <div style={{display: 'flex', justifyContent: 'center', marginTop: '50px'}}><Loader/></div>
                     : <PostList posts={sortAndSearchPosts} remove={removePost} title='Список постов'/>
             }
-
+            <div className='page__wrapper'>
+                {
+                    pagesArray.map(p =>
+                        <span
+                            onClick={() => {
+                                setPage(p)
+                            }}
+                            key={p}
+                            className={page === p ? 'page page__current' : 'page'}
+                        >{p}
+                        </span>
+                    )
+                }
+            </div>
         </div>
     );
 }
