@@ -1,4 +1,4 @@
-import React, {useMemo, useRef, useState} from "react";
+import React, {useEffect, useMemo, useRef, useState} from "react";
 import './styles/App.css';
 import PostItem from './components/PostItem';
 import PostList from './components/PostList';
@@ -9,17 +9,15 @@ import MySelect from './components/UI/select/MySelect';
 import PostFilter from './components/PostFilter';
 import MyModal from './components/UI/modal/MyModal';
 import {usePosts} from './hooks/usePosts';
+import axios from 'axios';
+import PostService from './API/PostService';
+import Loader from './components/UI/loader/Loader';
 
 function App() {
-    const [posts, setPosts] = useState([
-        {id: 1, title: 'JavaScript', body: 'JavaScript - язык программирования'},
-        {id: 2, title: 'Python', body: 'Python - язык программирования'},
-        {id: 3, title: 'PHP', body: 'PHP - язык программирования'}
-    ]);
-
+    const [posts, setPosts] = useState([]);
     const [filter, setFilter] = useState({sort: '', query: ''});
-    
-    const sortAndSearchPosts = usePosts(posts, filter.sort, filter.query);
+
+    const [isPostsLoading, setIsPostsLoading] = useState(false);
 
     const createPost = (newPost) => {
         setPosts([...posts, newPost]);
@@ -31,6 +29,21 @@ function App() {
     }
 
     const [visible, setVisible] = useState(false);
+
+    const getPosts = async () => {
+        setIsPostsLoading(true);
+        setTimeout(async () => {
+            const posts = await PostService.getAll();
+            setPosts(posts);
+            setIsPostsLoading(false);
+        }, 1000);
+    }
+
+    useEffect(() => {
+        getPosts();
+    }, []);
+
+    const sortAndSearchPosts = usePosts(posts, filter.sort, filter.query);
 
     return (
         <div className="App">
@@ -48,7 +61,12 @@ function App() {
                 filter={filter}
                 setFilter={setFilter}
             />
-            <PostList posts={sortAndSearchPosts} remove={removePost} title='Список постов'/>
+            {
+                isPostsLoading
+                    ? <div style={{display: 'flex', justifyContent: 'center', marginTop: '50px'}}><Loader/></div>
+                    : <PostList posts={sortAndSearchPosts} remove={removePost} title='Список постов'/>
+            }
+
         </div>
     );
 }
